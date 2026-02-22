@@ -1,17 +1,21 @@
 package config
 
 type PhpipamConfig struct {
-	Url string `yaml:"url"`
+	Url string `mapstructure:"url"`
 }
 type GitlabConfig struct {
-	Url string `yaml:"url"`
+	Url string `mapstructure:"url"`
 }
 type AnsibleConfig struct {
-	Url string `yaml:"url"`
+	Url string `mapstructure:"url"`
 }
 
 type Config struct {
-	PhpipamConfig PhpipamConfig `yaml:"phpipam"`
-	GitlabConfig  GitlabConfig  `yaml:"gitlab"`
-	AnsibleConfig AnsibleConfig `yaml:"ansible"`
+	PhpipamConfig PhpipamConfig `mapstructure:"phpipam"`
+	GitlabConfig  GitlabConfig  `mapstructure:"gitlab"`
+	AnsibleConfig AnsibleConfig `mapstructure:"ansible"`
+
+	OutputDirectory      string            `mapstructure:"output_directory"`
+	DataDirectory        string            `mapstructure:"data_directory"`
+	DataDirectoryMappers map[string]string `mapstructure:"data_directory_mappers"`
 }
