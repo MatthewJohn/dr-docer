@@ -3,7 +3,6 @@ package discovery
 import (
 	"fmt"
 
-	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/config"
 	discoveryDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/discovery"
 	metadataDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/metadata"
 )
@@ -12,20 +11,25 @@ type StorageMetadata struct {
 }
 
 type FilesystemEntityMetadata struct {
-	Type         metadataDomain.EntityType `yaml:"type"`
-	Name         string                    `yaml:"name"`
-	Criticality  string                    `yaml:"criticality"`
-	Host         string                    `yaml:"host"`
-	Storage      StorageMetadata           `yaml:"storage"`
-	Dependencies []string                  `yaml:"dependencies"`
-	Terraform    []string                  `yaml:"terraform"`
+	Type metadataDomain.EntityType `yaml:"type"`
+	Name string                    `yaml:"name"`
+	// Criticality  string                    `yaml:"criticality"`
+	// Host         string                    `yaml:"host"`
+	// Storage      StorageMetadata           `yaml:"storage"`
+	// Dependencies []string                  `yaml:"dependencies"`
+	// Terraform    []string                  `yaml:"terraform"`
+}
+
+type FilesystemDiscoveryConfig struct {
+	BaseDirectory          string
+	DirectoryToTypeMapping map[string]string
 }
 
 type FilesystemDiscovery struct {
-	config *config.Config
+	config *FilesystemDiscoveryConfig
 }
 
-func NewFilesystemDiscovery(config *config.Config) (*FilesystemDiscovery, error) {
+func NewFilesystemDiscovery(config *FilesystemDiscoveryConfig) (*FilesystemDiscovery, error) {
 	if config == nil {
 		return nil, fmt.Errorf("NewMetadataLoader passed with nil config")
 	}
@@ -34,11 +38,11 @@ func NewFilesystemDiscovery(config *config.Config) (*FilesystemDiscovery, error)
 	}, nil
 }
 
-func (m FilesystemDiscovery) GetEntities(existingCollection *discoveryDomain.EntityCollection) error {
+func (m *FilesystemDiscovery) GetEntities(existingCollection *discoveryDomain.EntityCollection) error {
 	return nil
 }
-func (m FilesystemDiscovery) GetPriority() int {
+func (m *FilesystemDiscovery) GetPriority() int {
 	return 1
 }
 
-var _ discoveryDomain.EntitySource = FilesystemDiscovery{}
+var _ discoveryDomain.EntitySource = &FilesystemDiscovery{}

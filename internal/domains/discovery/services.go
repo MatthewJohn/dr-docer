@@ -12,10 +12,6 @@ type EntitySource interface {
 	GetPriority() int
 }
 
-type EntityStore interface {
-	GetEntityByNameAndType(name string, entityType metadata.EntityType)
-}
-
 type EntityFactory struct {
 	entitySources []EntitySource
 }
@@ -24,16 +20,12 @@ func NewEntityFactory() (*EntityFactory, error) {
 	return &EntityFactory{}, nil
 }
 
-func (m *EntityFactory) RegisterEntitySource(entitySource *EntitySource) error {
+func (m *EntityFactory) RegisterEntitySource(entitySource EntitySource) error {
 	if entitySource == nil {
 		return fmt.Errorf("RegisterEntitySource: Cannot register nil entitySource")
 	}
-	m.entitySources = append(m.entitySources, *entitySource)
+	m.entitySources = append(m.entitySources, entitySource)
 	return nil
-}
-
-func MergeEntities([]metadata.Entity, []metadata.Entity) {
-	// Do some magic here
 }
 
 func (m *EntityFactory) LoadEntities() (*EntityCollection, error) {
@@ -64,15 +56,33 @@ func NewEntityCollection() (*EntityCollection, error) {
 	return &EntityCollection{}, nil
 }
 
-func (e *EntityCollection) GetEntityByNameAndType(name string, entityType metadata.EntityType) *metadata.Entity {
+func (e *EntityCollection) GetEntityByNameAndType(name string, entityType metadata.EntityType) metadata.Entity {
 	for _, entity := range e.entities {
-		if entity.Name == name && entity.Type == entityType {
-			return &entity
+		if entity.GetName() == name && entity.GetType() == entityType {
+			return entity
 		}
 	}
 	return nil
 }
 
+func (e *EntityCollection) GetEntities() []metadata.Entity {
+	return e.entities
+}
+
+func mergeEntities(original metadata.Entity, new metadata.Entity) {
+	if original == nil || new == nil {
+		return
+	}
+	original.MergeAttributes(new)
+}
+
 func (e *EntityCollection) AddEntity(entity metadata.Entity) {
-	// if
+	// Check if entity already exists
+	existing := e.GetEntityByNameAndType(entity.GetName(), entity.GetType())
+	if existing != nil {
+		mergeEntities(existing, entity)
+		return
+	}
+	// Otherwise add the entity
+	e.entities = append(e.entities, entity)
 }
