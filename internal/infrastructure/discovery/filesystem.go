@@ -114,18 +114,23 @@ func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntity
 
 	var entity metadataDomain.Entity
 	fmt.Printf("%s\n", raw.Type)
-	if raw.Type == metadataDomain.EntityTypeSerer {
+	switch raw.Type {
+	case metadataDomain.EntityTypeSerer:
 		fmt.Printf("Processing Server entity\n")
 		entity = &metadataDomain.EntityServer{
 			BaseEntity: baseEntity,
 			IpAddress:  raw.IpAddress,
 		}
-	} else if raw.Type == metadataDomain.EntityTypeService {
+
+	case metadataDomain.EntityTypeService:
 		fmt.Printf("Processing Service entity\n")
 		entity = &metadataDomain.EntityService{
 			BaseEntity: baseEntity,
 			Url:        raw.Url,
 		}
+
+	default:
+		return fmt.Errorf("Unknown entity type: %s\n", raw.Type)
 	}
 	fmt.Printf("Entity: %#v\n", entity)
 	if entity != nil {
@@ -152,7 +157,7 @@ func (m *FilesystemDiscovery) processFile(existingCollection *discoveryDomain.En
 		err := decoder.Decode(&raw)
 		if err != nil {
 			if err.Error() == "EOF" {
-				return nil
+				break
 			}
 			fmt.Println(err)
 			continue
