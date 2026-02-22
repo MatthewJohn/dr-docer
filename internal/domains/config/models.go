@@ -18,4 +18,5 @@ type Config struct {
 	OutputDirectory      string            `mapstructure:"output_directory"`
 	DataDirectory        string            `mapstructure:"data_directory"`
 	DataDirectoryMappers map[string]string `mapstructure:"data_directory_mappers"`
+	DataFileExtensions   []string          `mapstructure:"data_file_extensions"`
 }

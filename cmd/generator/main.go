@@ -21,9 +21,11 @@ func main() {
 		panic(err)
 	}
 
+	fmt.Printf("Config: %#v", config)
 	filesystemDiscoveryConfig := discoveryInfra.FilesystemDiscoveryConfig{
 		BaseDirectory:          config.DataDirectory,
 		DirectoryToTypeMapping: config.DataDirectoryMappers,
+		FileExtensions:         config.DataFileExtensions,
 	}
 	filesystemDiscovery, err := discoveryInfra.NewFilesystemDiscovery(&filesystemDiscoveryConfig)
 	if err != nil {
@@ -38,21 +40,6 @@ func main() {
 	}
 
 	for _, entity := range entities.GetEntities() {
-		fmt.Println(fmt.Sprintf("Entity found: %s : %s", entity.GetName(), entity.GetType()))
+		fmt.Printf("Entity found: %s : %s : %#v\n", entity.GetName(), entity.GetType(), entity)
 	}
-
-	// decoder := yaml.NewDecoder(bytes.NewReader(data))
-
-	// var docIndex int
-	// for {
-	// 	var raw interface{}
-	// 	err := decoder.Decode(&raw)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		break
-	// 	}
-	// 	docIndex++
-	// 	fmt.Printf("--- Document %d ---\n", docIndex)
-	// 	fmt.Printf("%#v\n", raw)
-	// }
 }

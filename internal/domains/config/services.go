@@ -45,4 +45,7 @@ func setDefaults(config *Config) {
 	if config.DataDirectory == "" {
 		config.OutputDirectory = "./data"
 	}
+	if len(config.DataFileExtensions) == 0 {
+		config.DataFileExtensions = []string{".yaml", ".yml"}
+	}
 }

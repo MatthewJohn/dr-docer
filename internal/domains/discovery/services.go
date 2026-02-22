@@ -76,13 +76,17 @@ func mergeEntities(original metadata.Entity, new metadata.Entity) {
 	original.MergeAttributes(new)
 }
 
-func (e *EntityCollection) AddEntity(entity metadata.Entity) {
+func (e *EntityCollection) AddEntity(entity metadata.Entity) error {
+	if entity.GetName() == "" {
+		return fmt.Errorf("AddEntity: Cannot add entity with empty name")
+	}
 	// Check if entity already exists
 	existing := e.GetEntityByNameAndType(entity.GetName(), entity.GetType())
 	if existing != nil {
 		mergeEntities(existing, entity)
-		return
+	} else {
+		// Otherwise add the entity
+		e.entities = append(e.entities, entity)
 	}
-	// Otherwise add the entity
-	e.entities = append(e.entities, entity)
+	return nil
 }
