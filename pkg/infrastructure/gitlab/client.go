@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	gitDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/git"
+	gitDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/git"
 	"gopkg.in/src-d/go-git.v4/storage"
 )
 

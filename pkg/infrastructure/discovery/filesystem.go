@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	discoveryDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/discovery"
-	metadataDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/metadata"
+	discoveryDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/discovery"
+	metadataDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/metadata"
 	"go.yaml.in/yaml/v3"
 )
 
