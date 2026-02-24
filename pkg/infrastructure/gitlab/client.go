@@ -56,7 +56,11 @@ func (g *GitlabClient) ConvertUrlToRepoAndPath(cloneUrl string) (string, string,
 	parsedUrl.User = url.UserPassword("token", g.config.Token)
 
 	// Get fragment from Gitlab URL to determine if this changes the hostname
-	return "", "", nil
+	// @TODO handle this case
+	if strings.Contains(parsedUrl.Path, "/-/") {
+		return "", "", fmt.Errorf("URL appears to be a sub-path of a repo. Not yet supported.")
+	}
+	return parsedUrl.String(), "", nil
 }
 
 var _ gitDomain.GitRepoProvider = &GitlabClient{}
