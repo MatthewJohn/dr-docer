@@ -9,14 +9,14 @@ import (
 )
 
 type GitlabConfig struct {
-	Url    string
-	Token  string
-	Domain string
+	Url   string
+	Token string
 }
 
 type GitlabClient struct {
 	config  *GitlabConfig
 	storage *storage.Storer
+	domain  string
 }
 
 func NewGitlabClient(config *GitlabConfig, storage *storage.Storer) (*GitlabClient, error) {
@@ -40,14 +40,14 @@ func (g *GitlabClient) MakeRequest(url string) {
 }
 
 func (g *GitlabClient) GetDomain() (string, error) {
-	if g.config.Domain == "" {
+	if g.domain == "" {
 		parsedUrl, err := url.Parse(g.config.Url)
 		if err != nil {
 			return "", err
 		}
-		g.config.Domain = parsedUrl.Host
+		g.domain = parsedUrl.Host
 	}
-	return g.config.Domain, nil
+	return g.domain, nil
 }
 
 func (g *GitlabClient) ConvertUrlToRepoAndPath(cloneUrl string) (string, string, error) {
