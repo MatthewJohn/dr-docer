@@ -29,7 +29,10 @@ type GitService struct {
 }
 
 func NewGitService() (*GitService, error) {
-	return &GitService{}, nil
+	return &GitService{
+		gitProviders: []GitRepoProvider{},
+		repos:        map[string]Repo{},
+	}, nil
 }
 
 func (g *GitService) RegisterGitRepoProvider(repo GitRepoProvider) error {
