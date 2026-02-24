@@ -49,7 +49,7 @@ func (g *GitService) RegisterGitRepoProvider(repo GitRepoProvider) error {
 	return nil
 }
 
-func (g *GitService) GetRepoProviderForUrl(gitUrl string) (*GitRepoProvider, error) {
+func (g *GitService) getRepoProviderForUrl(gitUrl string) (GitRepoProvider, error) {
 	urlParts, err := url.Parse(gitUrl)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (g *GitService) GetRepoProviderForUrl(gitUrl string) (*GitRepoProvider, err
 	domain := urlParts.Host
 	for _, gitRepoProvider := range g.gitProviders {
 		if gitRepoProviderDomain, err := gitRepoProvider.GetDomain(); err == nil && gitRepoProviderDomain == domain {
-			return &gitRepoProvider, nil
+			return gitRepoProvider, nil
 		}
 	}
 	return nil, nil
