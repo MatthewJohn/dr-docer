@@ -3,7 +3,7 @@ package discovery
 import (
 	"fmt"
 
-	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/metadata"
+	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/metadata"
 )
 
 type EntitySource interface {

@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	discoveryDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/discovery"
-	metadataDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/internal/domains/metadata"
+	discoveryDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/discovery"
+	metadataDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/metadata"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -108,24 +108,33 @@ func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntity
 		return fmt.Errorf("Empty type found in document")
 	}
 
+	if raw.Name == "" {
+		return fmt.Errorf("Empty enitty name")
+	}
+
 	baseEntity := metadataDomain.BaseEntity{
 		Name: raw.Name,
 	}
 
 	var entity metadataDomain.Entity
 	fmt.Printf("%s\n", raw.Type)
-	if raw.Type == metadataDomain.EntityTypeSerer {
+	switch raw.Type {
+	case metadataDomain.EntityTypeSerer:
 		fmt.Printf("Processing Server entity\n")
 		entity = &metadataDomain.EntityServer{
 			BaseEntity: baseEntity,
 			IpAddress:  raw.IpAddress,
 		}
-	} else if raw.Type == metadataDomain.EntityTypeService {
+
+	case metadataDomain.EntityTypeService:
 		fmt.Printf("Processing Service entity\n")
 		entity = &metadataDomain.EntityService{
 			BaseEntity: baseEntity,
 			Url:        raw.Url,
 		}
+
+	default:
+		return fmt.Errorf("Unknown entity type: %s\n", raw.Type)
 	}
 	fmt.Printf("Entity: %#v\n", entity)
 	if entity != nil {
@@ -152,7 +161,7 @@ func (m *FilesystemDiscovery) processFile(existingCollection *discoveryDomain.En
 		err := decoder.Decode(&raw)
 		if err != nil {
 			if err.Error() == "EOF" {
-				return nil
+				break
 			}
 			fmt.Println(err)
 			continue
@@ -179,7 +188,7 @@ func (m *FilesystemDiscovery) GetEntities(existingCollection *discoveryDomain.En
 	return nil
 }
 func (m *FilesystemDiscovery) GetPriority() int {
-	return 1
+	return 50
 }
 
 var _ discoveryDomain.EntitySource = &FilesystemDiscovery{}
