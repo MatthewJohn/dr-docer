@@ -108,6 +108,10 @@ func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntity
 		return fmt.Errorf("Empty type found in document")
 	}
 
+	if raw.Name == "" {
+		return fmt.Errorf("Empty enitty name")
+	}
+
 	baseEntity := metadataDomain.BaseEntity{
 		Name: raw.Name,
 	}
