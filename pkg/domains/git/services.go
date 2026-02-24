@@ -72,13 +72,25 @@ func (g *GitService) generateRepoHash(repoUrl string) (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-func (g *GitService) CloneRepository(repoUrl string) (*git.Repository, error) {
-	repoHash, err := g.generateRepoHash(repoUrl)
+func (g *GitService) CloneRepository(cloneUrl string) (*git.Repository, error) {
+	repoHash, err := g.generateRepoHash(cloneUrl)
 	if err != nil {
 		return nil, err
 	}
 	if _, ok := g.repos[repoHash]; ok {
 		return g.repos[repoHash].Repository, nil
+	}
+
+	gitProvider, err := g.getRepoProviderForUrl(cloneUrl)
+	if err != nil {
+		return nil, err
+	}
+	if gitProvider == nil {
+		return nil, fmt.Errorf("Could not find git provider for URL")
+	}
+	repoUrl, _, err := gitProvider.ConvertUrlToRepoAndPath(cloneUrl)
+	if err != nil {
+		return nil, err
 	}
 
 	storage := memory.NewStorage()
