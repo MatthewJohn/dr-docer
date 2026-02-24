@@ -3,9 +3,9 @@ package gitlab
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	gitDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/git"
-	"gopkg.in/src-d/go-git.v4/storage"
 )
 
 type GitlabConfig struct {
@@ -14,24 +14,19 @@ type GitlabConfig struct {
 }
 
 type GitlabClient struct {
-	config  *GitlabConfig
-	storage *storage.Storer
-	domain  string
+	config *GitlabConfig
+	domain string
 }
 
-func NewGitlabClient(config *GitlabConfig, storage *storage.Storer) (*GitlabClient, error) {
+func NewGitlabClient(config *GitlabConfig) (*GitlabClient, error) {
 	if config == nil {
 		return nil, fmt.Errorf("NewGitlabClient: config is nil")
 	}
 	if config.Url == "" {
 		return nil, fmt.Errorf("NewGitlabClient: Gitlab URL is nil")
 	}
-	if storage == nil {
-		return nil, fmt.Errorf("NewGitlabClient: storage is nil")
-	}
 	return &GitlabClient{
-		config:  config,
-		storage: storage,
+		config: config,
 	}, nil
 }
 
