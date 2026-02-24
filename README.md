@@ -118,3 +118,11 @@ Template ideas:
 
 {{ end }}
 ```
+
+
+
+EntitySource ---> EntityFactory ---> EntityStore
+     |               |                  |
+      --(Creates)-->  --> Stores -------
+
+Entity ---> Relationships
