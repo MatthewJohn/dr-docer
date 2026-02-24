@@ -28,7 +28,8 @@ func (b *BaseEntity) MergeAttributes(new Entity) {
 
 type EntityServer struct {
 	BaseEntity
-	IpAddress string
+	IpAddress     string
+	ParentStorage string
 }
 
 func (e *EntityServer) GetType() EntityType {
