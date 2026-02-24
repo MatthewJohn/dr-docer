@@ -184,7 +184,7 @@ func (m *FilesystemDiscovery) GetEntities(existingCollection *discoveryDomain.En
 	return nil
 }
 func (m *FilesystemDiscovery) GetPriority() int {
-	return 1
+	return 50
 }
 
 var _ discoveryDomain.EntitySource = &FilesystemDiscovery{}
