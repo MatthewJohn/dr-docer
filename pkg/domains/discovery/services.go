@@ -3,13 +3,18 @@ package discovery
 import (
 	"fmt"
 
+	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/attribute"
 	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/metadata"
 )
 
 type EntitySource interface {
-	GetEntities(existingCollection *EntityCollection) error
+	GetEntities(collection *EntityCollection) error
 	// Determine the priority when the entity can be run
 	GetPriority() int
+	// GetEntityTypes Returns a list of entity types that the EntitySource registers
+	GetEntityTypes() []metadata.EntityType
+	// GetAttributes Returns a list of attributes that the EntitySource uses
+	GetAttributes() []attribute.Attribute
 }
 
 type EntityFactory struct {
@@ -39,11 +44,16 @@ func (m *EntityFactory) LoadEntities() (*EntityCollection, error) {
 	}
 
 	for _, entitySource := range m.entitySources {
-		err := entitySource.GetEntities(entityCollection)
+		sourceCollection, err := NewEntityCollection()
+		if err != nil {
+			return nil, err
+		}
+		err = entitySource.GetEntities(sourceCollection)
 		if err != nil {
 			// @TODO: Probably return error and skip the source
 			return nil, err
 		}
+		entityCollection.MergeCollection(sourceCollection)
 	}
 	return entityCollection, nil
 }
@@ -56,10 +66,10 @@ func NewEntityCollection() (*EntityCollection, error) {
 	return &EntityCollection{}, nil
 }
 
-func (e *EntityCollection) GetEntityByNameAndType(name string, entityType metadata.EntityType) metadata.Entity {
+func (e *EntityCollection) GetEntityByNameAndType(name metadata.EntityName, entityType metadata.EntityType) *metadata.Entity {
 	for _, entity := range e.entities {
 		if entity.GetName() == name && entity.GetType() == entityType {
-			return entity
+			return &entity
 		}
 	}
 	return nil
@@ -69,14 +79,23 @@ func (e *EntityCollection) GetEntities() []metadata.Entity {
 	return e.entities
 }
 
-func mergeEntities(original metadata.Entity, new metadata.Entity) {
+func mergeEntities(original *metadata.Entity, new *metadata.Entity) {
 	if original == nil || new == nil {
 		return
 	}
 	original.MergeAttributes(new)
 }
 
-func (e *EntityCollection) AddEntity(entity metadata.Entity) error {
+func (e *EntityCollection) MergeCollection(new *EntityCollection) error {
+	for _, newEntity := range new.entities {
+		if err := e.AddEntity(&newEntity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *EntityCollection) AddEntity(entity *metadata.Entity) error {
 	if entity.GetName() == "" {
 		return fmt.Errorf("AddEntity: Cannot add entity with empty name")
 	}
@@ -86,7 +105,7 @@ func (e *EntityCollection) AddEntity(entity metadata.Entity) error {
 		mergeEntities(existing, entity)
 	} else {
 		// Otherwise add the entity
-		e.entities = append(e.entities, entity)
+		e.entities = append(e.entities, *entity)
 	}
 	return nil
 }

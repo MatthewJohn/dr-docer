@@ -1,76 +1,94 @@
 package metadata
 
-type EntityType string
+import (
+	"fmt"
+	"reflect"
 
-const (
-	EntityTypeSerer   EntityType = "server"
-	EntityTypeService EntityType = "service"
+	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/attribute"
 )
 
-type Entity interface {
-	GetType() EntityType
-	GetName() string
-	MergeAttributes(new Entity)
-}
+type EntityName string
+type EntityType string
 
-type BaseEntity struct {
-	Name string
+type EntityId struct {
+	Name EntityName
 	Type EntityType
 }
 
-func (b BaseEntity) GetName() string {
-	return b.Name
+type Entity struct {
+	Name            EntityName
+	Type            EntityType
+	DefaultPriority int
+	Attributes      map[attribute.AttributeName]attribute.AttributeInstance
 }
 
-func (b *BaseEntity) MergeAttributes(new Entity) {
-	// No attributes to current merge
+func NewEntity(name EntityName, entityType EntityType, defaultPriority int) (*Entity, error) {
+	return &Entity{
+		Name:            name,
+		Type:            entityType,
+		DefaultPriority: defaultPriority,
+		Attributes:      map[attribute.AttributeName]attribute.AttributeInstance{},
+	}, nil
 }
 
-type EntityServer struct {
-	BaseEntity
-	IpAddress     string
-	ParentStorage string
+// SetAttribute: Set attribute of entity
+func (e *Entity) SetAttribute(attribute *attribute.Attribute, value any) error {
+	return e.SetAttributeWithPriority(attribute, value, 0)
 }
 
-func (e *EntityServer) GetType() EntityType {
-	return EntityTypeSerer
-}
-
-func (e *EntityServer) MergeAttributes(new Entity) {
-	other, ok := new.(*EntityServer)
-	if !ok {
-		return
+// SetAttribute: Set attribute of entity with overriden priority
+func (e *Entity) SetAttributeWithPriority(attribute *attribute.Attribute, value any, overridePriority int) error {
+	if attribute == nil {
+		return fmt.Errorf("SetAttribute: attribute is nil")
+	}
+	if attributeInstance := e.GetAttributeByName(attribute.Name); attributeInstance != nil {
+		return fmt.Errorf("Attribute %s already set on instance", attribute.Name)
 	}
 
-	e.BaseEntity.MergeAttributes(other)
-
-	if e.IpAddress == "" {
-		e.IpAddress = other.IpAddress
-	}
-}
-
-var _ Entity = &EntityServer{}
-
-type EntityService struct {
-	BaseEntity
-	Url string
-}
-
-func (e *EntityService) GetType() EntityType {
-	return EntityTypeService
-}
-
-func (e *EntityService) MergeAttributes(new Entity) {
-	other, ok := new.(*EntityService)
-	if !ok {
-		return
+	if reflect.TypeOf(value) != attribute.Type {
+		return fmt.Errorf("Value for attribute %s is not type %s", attribute.Name, attribute.Type)
 	}
 
-	e.BaseEntity.MergeAttributes(other)
-
-	if e.Url == "" {
-		e.Url = other.Url
+	attributeInstance := attribute.CeateInstance()
+	attributeInstance.Value = value
+	if overridePriority == 0 {
+		overridePriority = e.DefaultPriority
 	}
+
+	// Assign attribute to entity
+	e.registerAttributeInstance(attributeInstance)
+
+	return nil
 }
 
-var _ Entity = &EntityService{}
+// registerAttributeInstance: Register an attribute instance with entity
+func (e *Entity) registerAttributeInstance(attributeInstance attribute.AttributeInstance) {
+	e.Attributes[attributeInstance.Attribute.Name] = attributeInstance
+}
+
+func (e *Entity) GetName() EntityName {
+	return e.Name
+}
+
+func (e *Entity) GetType() EntityType {
+	return e.Type
+}
+
+func (e *Entity) GetAttributes() map[attribute.AttributeName]attribute.AttributeInstance {
+	return e.Attributes
+}
+
+func (e *Entity) GetAttributeByName(attributeName attribute.AttributeName) *attribute.AttributeInstance {
+	if attribute, ok := e.Attributes[attributeName]; ok {
+		return &attribute
+	}
+	return nil
+}
+
+func (e *Entity) MergeAttributes(new *Entity) {
+	for _, newAttribute := range new.GetAttributes() {
+		if existingAttribute := e.GetAttributeByName(newAttribute.Attribute.Name); existingAttribute != nil {
+			existingAttribute.MergeAttribute(&newAttribute)
+		}
+	}
+}

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/attribute"
+	commontypes "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/common_types"
 	discoveryDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/discovery"
 	metadataDomain "gitlab.dockstudios.co.uk/dockstudios/dr-docer/pkg/domains/metadata"
 	"go.yaml.in/yaml/v3"
@@ -37,6 +39,20 @@ type FilesystemDiscoveryConfig struct {
 
 type FilesystemDiscovery struct {
 	config *FilesystemDiscoveryConfig
+}
+
+func (m *FilesystemDiscovery) GetEntityTypes() []metadataDomain.EntityType {
+	return []metadataDomain.EntityType{
+		commontypes.EntityServer,
+		commontypes.EntityService,
+	}
+}
+
+func (m *FilesystemDiscovery) GetAttributes() []attribute.Attribute {
+	return []attribute.Attribute{
+		commontypes.AttributeIpAddress,
+		commontypes.AttributeUrl,
+	}
 }
 
 func isDirectory(path string) (bool, error) {
@@ -96,7 +112,7 @@ func (m *FilesystemDiscovery) convertFilepathToType(filePath string) metadataDom
 	return ""
 }
 
-func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntityMetadata, existingCollection *discoveryDomain.EntityCollection, filePath string) error {
+func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntityMetadata, collection *discoveryDomain.EntityCollection, filePath string) error {
 	// Attempt to extract type from path
 	if raw.Type == "" {
 		if pathType := m.convertFilepathToType(filePath); pathType != "" {
@@ -104,41 +120,34 @@ func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntity
 		}
 	}
 	if raw.Type == "" {
-		fmt.Print("Empty type, ignoring\n")
-		return fmt.Errorf("Empty type found in document")
+		return fmt.Errorf("Empty type found")
 	}
 
 	if raw.Name == "" {
 		return fmt.Errorf("Empty enitty name")
 	}
 
-	baseEntity := metadataDomain.BaseEntity{
-		Name: raw.Name,
+	entity, err := metadataDomain.NewEntity(metadataDomain.EntityName(raw.Name), raw.Type, m.GetPriority())
+	if err != nil {
+		return err
 	}
 
-	var entity metadataDomain.Entity
 	fmt.Printf("%s\n", raw.Type)
-	switch raw.Type {
-	case metadataDomain.EntityTypeSerer:
+	switch entity.Type {
+	case commontypes.EntityServer:
 		fmt.Printf("Processing Server entity\n")
-		entity = &metadataDomain.EntityServer{
-			BaseEntity: baseEntity,
-			IpAddress:  raw.IpAddress,
-		}
+		entity.SetAttribute(&commontypes.AttributeIpAddress, raw.IpAddress)
 
-	case metadataDomain.EntityTypeService:
+	case commontypes.EntityService:
 		fmt.Printf("Processing Service entity\n")
-		entity = &metadataDomain.EntityService{
-			BaseEntity: baseEntity,
-			Url:        raw.Url,
-		}
+		entity.SetAttribute(&commontypes.AttributeUrl, raw.Url)
 
 	default:
 		return fmt.Errorf("Unknown entity type: %s\n", raw.Type)
 	}
 	fmt.Printf("Entity: %#v\n", entity)
 	if entity != nil {
-		err := existingCollection.AddEntity(entity)
+		err := collection.AddEntity(entity)
 		if err != nil {
 			return err
 		}
@@ -146,7 +155,7 @@ func (m *FilesystemDiscovery) processRawFilesystemMetadata(raw *FilesystemEntity
 	return nil
 }
 
-func (m *FilesystemDiscovery) processFile(existingCollection *discoveryDomain.EntityCollection, filePath string) error {
+func (m *FilesystemDiscovery) processFile(collection *discoveryDomain.EntityCollection, filePath string) error {
 	// Read file
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
@@ -168,7 +177,7 @@ func (m *FilesystemDiscovery) processFile(existingCollection *discoveryDomain.En
 		}
 		fmt.Printf("--- Document ---\n")
 		fmt.Printf("%#v\n", raw)
-		err = m.processRawFilesystemMetadata(&raw, existingCollection, filePath)
+		err = m.processRawFilesystemMetadata(&raw, collection, filePath)
 		if err != nil {
 			fmt.Printf("processFile: Error processing file fragment: %s\n", err)
 		}
@@ -176,14 +185,14 @@ func (m *FilesystemDiscovery) processFile(existingCollection *discoveryDomain.En
 	return nil
 }
 
-func (m *FilesystemDiscovery) GetEntities(existingCollection *discoveryDomain.EntityCollection) error {
+func (m *FilesystemDiscovery) GetEntities(collection *discoveryDomain.EntityCollection) error {
 	filePaths, err := findFiles(m.config.BaseDirectory, m.config.FileExtensions)
 	if err != nil {
 		return err
 	}
 
 	for _, filePath := range filePaths {
-		m.processFile(existingCollection, filePath)
+		m.processFile(collection, filePath)
 	}
 	return nil
 }
