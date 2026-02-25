@@ -29,8 +29,13 @@ EntitySource(s)     EntityFactory      EntityCollection
 **Entities** represent infrastructure components such as servers or services. Each entity has:
 - A name (unique identifier)
 - A type (e.g., server, service)
-- Attributes specific to the type (IP address, URL, storage, dependencies, etc.)
-- The ability to merge attributes from other entities of the same name/type
+- A map of dynamic attributes with type-safe values
+- Priority-based attribute merging from multiple sources
+
+**Attributes** are typed, named values that can be attached to entities:
+- Each attribute has a name, type, and optional default value
+- Attributes instances have a priority for merge conflict resolution
+- Common attributes (like IP address, URL) are shared across sources
 
 **Entity Sources** are pluggable data providers that discover and provide entities. Sources can query external APIs, parse configuration files, read from filesystems, clone Git repositories, or connect to any other data source.
 
@@ -42,15 +47,67 @@ EntitySource(s)     EntityFactory      EntityCollection
 
 ## Entity Types
 
-### Server
-- Represents physical or virtual servers
-- Attributes: IP address, parent storage, host
-- Example: A database server, load balancer, or application host
+### Common Entity Types
 
-### Service
-- Represents applications or services
-- Attributes: URL, dependencies, criticality
-- Example: A web service, API endpoint, or internal tool
+The framework provides common entity types in the `common_types` package:
+- `EntityServer` - Represents physical or virtual servers
+- `EntityService` - Represents applications or services
+
+### Common Attributes
+
+Common attributes are shared across entity sources:
+- `AttributeIpAddress` - IP address of a server
+- `AttributeUrl` - URL of a service
+
+### Extending with Custom Attributes
+
+To add custom attributes for your entity sources, define them in your package:
+
+```go
+var AttributeParentStorage attribute.Attribute = attribute.Attribute{
+    Name:         "parent_storage",
+    Type:         reflect.TypeOf(""),
+    DefaultValue: "",
+}
+```
+
+Then return them from your `GetAttributes()` method:
+
+```go
+func (m *MyDiscovery) GetAttributes() []attribute.Attribute {
+    return []attribute.Attribute{
+        commontypes.AttributeIpAddress,  // Common attribute
+        AttributeParentStorage,           // Custom attribute
+    }
+}
+```
+
+### Extending with Custom Entity Types
+
+To define custom entity types, simply define them as constants:
+
+```go
+var (
+    EntityDatabase  metadata.EntityType = "database"
+    EntityLoadBalancer metadata.EntityType = "load_balancer"
+)
+```
+
+Then return them from your `GetEntityTypes()` method:
+
+```go
+func (m *MyDiscovery) GetEntityTypes() []metadata.EntityType {
+    return []metadata.EntityType{
+        EntityDatabase,
+        EntityLoadBalancer,
+    }
+}
+```
+
+Attributes support:
+- Type-safe values using `reflect.Type`
+- Default values for when attributes are unset
+- Priority-based merging (higher priority overrides lower)
 
 ## Extending the Framework
 
@@ -60,16 +117,22 @@ To add a new data source, implement the `EntitySource` interface:
 
 ```go
 type EntitySource interface {
-    GetEntities(existingCollection *EntityCollection) error
+    GetEntities(collection *EntityCollection) error
     GetPriority() int
+    GetEntityTypes() []metadata.EntityType
+    GetAttributes() []attribute.Attribute
 }
 ```
 
-The `GetEntities` method receives the existing entity collection, allowing it to:
+The `GetEntities` method receives the entity collection, allowing it to:
 - Add new entities
 - Merge additional attributes into existing entities
 
 The `GetPriority` method determines the order sources are called (lower values run first).
+
+The `GetEntityTypes` method returns the entity types that this source provides.
+
+The `GetAttributes` method returns the attributes that this source uses.
 
 ### Example: Infrastructure-as-Code Discovery
 
@@ -80,6 +143,16 @@ type IaCServerDiscovery struct {
     parser      *IaCParser
     gitService  *GitService
     repoUrl     string
+}
+
+func (d *IaCServerDiscovery) GetEntityTypes() []metadata.EntityType {
+    return []metadata.EntityType{commontypes.EntityServer}
+}
+
+func (d *IaCServerDiscovery) GetAttributes() []attribute.Attribute {
+    return []attribute.Attribute{
+        commontypes.AttributeIpAddress,
+    }
 }
 
 func (d *IaCServerDiscovery) GetEntities(collection *EntityCollection) error {
@@ -98,13 +171,16 @@ func (d *IaCServerDiscovery) GetEntities(collection *EntityCollection) error {
     // Extract server information from resources
     for _, resource := range resources {
         if resource.Type == "server" {
-            collection.AddEntity(&metadata.EntityServer{
-                BaseEntity: metadata.BaseEntity{
-                    Name: resource.Name,
-                    Type: metadata.EntityTypeServer,
-                },
-                IpAddress: resource.Attributes["ip_address"],
-            })
+            entity, err := metadata.NewEntity(
+                metadata.EntityName(resource.Name),
+                commontypes.EntityServer,
+                d.GetPriority(),
+            )
+            if err != nil {
+                return err
+            }
+            entity.SetAttribute(&commontypes.AttributeIpAddress, resource.Attributes["ip_address"])
+            collection.AddEntity(entity)
         }
     }
 
@@ -124,6 +200,14 @@ type APIDiscovery struct {
     baseUrl string
 }
 
+func (d *APIDiscovery) GetEntityTypes() []metadata.EntityType {
+    return []metadata.EntityType{commontypes.EntityServer}
+}
+
+func (d *APIDiscovery) GetAttributes() []attribute.Attribute {
+    return []attribute.Attribute{commontypes.AttributeIpAddress}
+}
+
 func (d *APIDiscovery) GetEntities(collection *EntityCollection) error {
     // Query API for infrastructure data
     resp, err := d.client.Get(d.baseUrl + "/api/servers/")
@@ -134,22 +218,21 @@ func (d *APIDiscovery) GetEntities(collection *EntityCollection) error {
     // Parse response and add/update entities
     for _, item := range resp.Items {
         existing := collection.GetEntityByNameAndType(
-            item.Name,
-            metadata.EntityTypeServer,
+            metadata.EntityName(item.Name),
+            commontypes.EntityServer,
         )
         if existing != nil {
             // Merge additional attributes into existing entity
-            server := existing.(*metadata.EntityServer)
-            server.IpAddress = item.IP
+            existing.SetAttribute(&commontypes.AttributeIpAddress, item.IP)
         } else {
             // Add new entity
-            collection.AddEntity(&metadata.EntityServer{
-                BaseEntity: metadata.BaseEntity{
-                    Name: item.Name,
-                    Type: metadata.EntityTypeServer,
-                },
-                IpAddress: item.IP,
-            })
+            entity, _ := metadata.NewEntity(
+                metadata.EntityName(item.Name),
+                commontypes.EntityServer,
+                d.GetPriority(),
+            )
+            entity.SetAttribute(&commontypes.AttributeIpAddress, item.IP)
+            collection.AddEntity(entity)
         }
     }
 
@@ -169,6 +252,20 @@ type FilesystemDiscovery struct {
     typeMappings  map[string]metadata.EntityType
 }
 
+func (d *FilesystemDiscovery) GetEntityTypes() []metadata.EntityType {
+    return []metadata.EntityType{
+        commontypes.EntityServer,
+        commontypes.EntityService,
+    }
+}
+
+func (d *FilesystemDiscovery) GetAttributes() []attribute.Attribute {
+    return []attribute.Attribute{
+        commontypes.AttributeIpAddress,
+        commontypes.AttributeUrl,
+    }
+}
+
 func (d *FilesystemDiscovery) GetEntities(collection *EntityCollection) error {
     // Walk directory structure
     filepath.Walk(d.baseDirectory, func(path string, info os.FileInfo, err error) error {
@@ -178,15 +275,26 @@ func (d *FilesystemDiscovery) GetEntities(collection *EntityCollection) error {
 
         // Parse YAML files
         var entityConfig struct {
-            Name string
-            Type string
-            // ... other fields
+            Name      string
+            Type      metadata.EntityType
+            IpAddress string
+            Url       string
         }
         file, _ := os.ReadFile(path)
         yaml.Unmarshal(file, &entityConfig)
 
         // Create and add entity
-        entity := createEntityFromConfig(entityConfig)
+        entity, _ := metadata.NewEntity(
+            metadata.EntityName(entityConfig.Name),
+            entityConfig.Type,
+            d.GetPriority(),
+        )
+        if entityConfig.IpAddress != "" {
+            entity.SetAttribute(&commontypes.AttributeIpAddress, entityConfig.IpAddress)
+        }
+        if entityConfig.Url != "" {
+            entity.SetAttribute(&commontypes.AttributeUrl, entityConfig.Url)
+        }
         collection.AddEntity(entity)
 
         return nil
@@ -239,6 +347,8 @@ dr-docer/
 │   │   ├── discovery/       # Entity factory and source interfaces
 │   │   ├── git/             # Git repository management
 │   │   ├── metadata/        # Entity models and types
+│   │   ├── attribute/       # Dynamic attribute system
+│   │   ├── common_types/    # Shared entity types and attributes
 │   │   └── terraform/       # Infrastructure-as-code parsing
 │   └── infrastructure/      # External service clients
 ├── templates/               # Documentation templates
@@ -289,6 +399,7 @@ func main() {
     // Generate documentation
     for _, entity := range entities.GetEntities() {
         fmt.Printf("Entity: %s (%s)\n", entity.GetName(), entity.GetType())
+        // Access attributes via entity.GetAttributes()
     }
 }
 ```
@@ -296,10 +407,10 @@ func main() {
 ## Key Features
 
 - **Pluggable Architecture**: Add new data sources by implementing a simple interface
+- **Dynamic Attributes**: Type-safe attribute system with priority-based merging
 - **Entity Merging**: Combine data from multiple sources with automatic conflict resolution
 - **Git Integration**: Built-in support for Git repositories with extensible provider pattern
 - **Infrastructure-as-Code Parsing**: Extract infrastructure definitions from configuration files
-- **Type-Safe Entities**: Strongly-typed entity models with compile-time safety
 - **Template-Based Generation**: Structured documentation from configurable templates
 - **Priority-Based Discovery**: Control the order and precedence of data sources
 

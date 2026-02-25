@@ -1,6 +1,8 @@
 package relationship
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type RelationshipStore interface {
 	GetEntityByName(name string) (*Entity, error)
@@ -27,7 +29,9 @@ func (r *RelationshipService) getOrCreateEntity(name string) (*Entity, error) {
 	}
 	if entity == nil {
 		entity = &Entity{
-			Name: name,
+			Name:       name,
+			Dependents: []Relationship{},
+			DependsOn:  []Relationship{},
 		}
 	}
 	return entity, nil
