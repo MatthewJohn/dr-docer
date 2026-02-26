@@ -26,7 +26,7 @@ func extractMetadataFromTemplate(templateData []byte) (*TemplateMetadata, error)
 
 	for {
 		var templateMetadata TemplateMetadata
-		err := decoder.Decode(templateMetadata)
+		err := decoder.Decode(&templateMetadata)
 		if err != nil {
 			if err.Error() == "EOF" {
 				break
@@ -52,7 +52,7 @@ func getTemplates(directory string) (map[string][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error globbing templates: %s", err.Error())
 	}
-	var templates map[string][]byte
+	templates := map[string][]byte{}
 	for _, match := range matches {
 		data, err := os.ReadFile(match)
 		if err != nil {
@@ -87,23 +87,32 @@ func NewDocumentGenerator(documentStorage DocumentStorage, templateDirectory str
 }
 
 func (dg *DocumentGenerator) getTemplateForEntityType(entityType metadata.EntityType) ([]byte, error) {
-	return []byte{}, nil
+	if template, ok := dg.templates[string(entityType)]; ok {
+		return template, nil
+	}
+	return []byte{}, fmt.Errorf("Template not found for entity type: %s", entityType)
 }
 
-func (dg *DocumentGenerator) GenerateDocumentForEntity(entity metadata.Entity) ([]byte, error) {
+func (dg *DocumentGenerator) GenerateDocumentForEntity(entity metadata.Entity) error {
 	templateRaw, err := dg.getTemplateForEntityType(entity.GetType())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	templateRenderer := template.New(string(entity.GetName()))
 	parsedTemplate, err := templateRenderer.Parse(string(templateRaw))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var b bytes.Buffer
-	err = parsedTemplate.Execute(io.Writer(&b), entity)
+
+	entityShim, err := NewTemplateEntityShim(&entity)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return b.Bytes(), nil
+
+	var b bytes.Buffer
+	err = parsedTemplate.Execute(io.Writer(&b), entityShim)
+	if err != nil {
+		return err
+	}
+	return dg.documentStorage.StoreDocument(entity.GetName(), entity.GetType(), b.Bytes())
 }
