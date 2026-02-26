@@ -49,13 +49,13 @@ func (r *RelationshipService) AddEntityRelationship(name string, parentName stri
 	}
 
 	// Add depdency on entity
-	entity.DependsOn = append(entity.Dependents, Relationship{
+	entity.DependsOn = append(entity.DependsOn, Relationship{
 		Target: *parentEntity,
 		Type:   relationshipType,
 	})
 
 	// Add relationship to parent
-	parentEntity.Dependents = append(entity.Dependents, Relationship{
+	parentEntity.Dependents = append(parentEntity.Dependents, Relationship{
 		Target: *entity,
 		Type:   relationshipType,
 	})
