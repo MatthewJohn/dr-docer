@@ -1,6 +1,9 @@
 package attribute
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // defaultPriority Default priority for new Attribute Instances.
 // Priority goes 0 (least) -> inf (highest).
@@ -37,6 +40,14 @@ type AttributeInstance struct {
 	Attribute *Attribute
 	Priority  int
 	Value     any
+}
+
+func (ai *AttributeInstance) SetValue(value any) error {
+	if valueType := reflect.TypeOf(value); ai.Attribute.Type != valueType {
+		return fmt.Errorf("Cannot set '%s' with value '%s'. Expected type: %s, Actual type: %s", ai.Attribute.Name, value, ai.Attribute.Type, valueType)
+	}
+	ai.Value = value
+	return nil
 }
 
 func (ai *AttributeInstance) MergeAttribute(new *AttributeInstance) {

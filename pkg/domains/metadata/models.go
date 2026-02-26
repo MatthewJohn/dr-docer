@@ -50,7 +50,9 @@ func (e *Entity) SetAttributeWithPriority(attribute *attribute.Attribute, value 
 	}
 
 	attributeInstance := attribute.CeateInstance()
-	attributeInstance.Value = value
+	if err := attributeInstance.SetValue(value); err != nil {
+		return err
+	}
 	if overridePriority == 0 {
 		overridePriority = e.DefaultPriority
 	}
